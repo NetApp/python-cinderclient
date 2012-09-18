@@ -17,6 +17,7 @@
 Volume interface (1.1 extension).
 """
 
+import urllib
 from cinderclient import base
 
 
@@ -85,7 +86,9 @@ class VolumeManager(base.ManagerWithFind):
 
     def create(self, size, snapshot_id=None,
                display_name=None, display_description=None,
-               volume_type=None):
+               volume_type=None, user_id=None,
+               project_id=None, availability_zone=None,
+               metadata=None, imageRef=None):
         """
         Create a volume.
 
@@ -95,12 +98,36 @@ class VolumeManager(base.ManagerWithFind):
         :param display_description: Description of the volume
         :param volume_type: Type of volume
         :rtype: :class:`Volume`
+        :param user_id: User id derived from context
+        :param project_id: Project id derived from context
+        :param availability_zone: Availability Zone to use
+        :param metadata: Optional metadata to set on volume creation
+        :param imageRef: reference to an image stored in glance
         """
+
+        if volume_type is None:
+            volume_type_id = None
+        else:
+            volume_type_id = volume_type.get('id', None)
+
+        if metadata is None:
+            volume_metadata = {}
+        else:
+            volume_metadata = metadata
+
         body = {'volume': {'size': size,
                            'snapshot_id': snapshot_id,
                            'display_name': display_name,
                            'display_description': display_description,
-                           'volume_type': volume_type}}
+                           'volume_type_id': volume_type_id,
+                           'user_id': user_id,
+                           'project_id': project_id,
+                           'availability_zone': availability_zone,
+                           'status': "creating",
+                           'attach_status': "detached",
+                           'metadata': volume_metadata,
+                           'imageRef': imageRef,
+                           }}
         return self._create('/volumes', body, 'volume')
 
     def get(self, volume_id):
@@ -112,16 +139,29 @@ class VolumeManager(base.ManagerWithFind):
         """
         return self._get("/volumes/%s" % volume_id, "volume")
 
-    def list(self, detailed=True):
+    def list(self, detailed=True, search_opts=None):
         """
         Get a list of all volumes.
 
         :rtype: list of :class:`Volume`
         """
-        if detailed is True:
-            return self._list("/volumes/detail", "volumes")
-        else:
-            return self._list("/volumes", "volumes")
+        if search_opts is None:
+            search_opts = {}
+
+        qparams = {}
+
+        for opt, val in search_opts.iteritems():
+            if val:
+                qparams[opt] = val
+
+        query_string = "?%s" % urllib.urlencode(qparams) if qparams else ""
+
+        detail = ""
+        if detailed:
+            detail = "/detail"
+
+        return self._list("/volumes%s%s" % (detail, query_string),
+                          "volumes")
 
     def delete(self, volume):
         """
@@ -190,7 +230,7 @@ class VolumeManager(base.ManagerWithFind):
         """
         Set attachment metadata.
 
-        :param server: The :class:`Volume` (or its ID)
+        :param volume: The :class:`Volume` (or its ID)
                        you would like to attach.
         :param instance_uuid: uuid of the attaching instance.
         :param mountpoint: mountpoint on the attaching instance.
@@ -204,7 +244,7 @@ class VolumeManager(base.ManagerWithFind):
         """
         Clear attachment metadata.
 
-        :param server: The :class:`Volume` (or its ID)
+        :param volume: The :class:`Volume` (or its ID)
                        you would like to detach.
         """
         return self._action('os-detach', volume)
@@ -213,7 +253,7 @@ class VolumeManager(base.ManagerWithFind):
         """
         Reserve this volume.
 
-        :param server: The :class:`Volume` (or its ID)
+        :param volume: The :class:`Volume` (or its ID)
                        you would like to reserve.
         """
         return self._action('os-reserve', volume)
@@ -222,7 +262,7 @@ class VolumeManager(base.ManagerWithFind):
         """
         Unreserve this volume.
 
-        :param server: The :class:`Volume` (or its ID)
+        :param volume: The :class:`Volume` (or its ID)
                        you would like to unreserve.
         """
         return self._action('os-unreserve', volume)
@@ -231,7 +271,7 @@ class VolumeManager(base.ManagerWithFind):
         """
         Initialize a volume connection.
 
-        :param server: The :class:`Volume` (or its ID).
+        :param volume: The :class:`Volume` (or its ID).
         :param connector: connector dict from nova.
         """
         return self._action('os-initialize_connection', volume,
@@ -241,7 +281,7 @@ class VolumeManager(base.ManagerWithFind):
         """
         Terminate a volume connection.
 
-        :param server: The :class:`Volume` (or its ID).
+        :param volume: The :class:`Volume` (or its ID).
         :param connector: connector dict from nova.
         """
         self._action('os-terminate_connection', volume,

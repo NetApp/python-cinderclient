@@ -1,5 +1,6 @@
 from cinderclient import client
 from cinderclient.v1 import volumes
+from cinderclient.v1 import shares
 from cinderclient.v1 import volume_snapshots
 from cinderclient.v1 import volume_types
 
@@ -34,6 +35,7 @@ class Client(object):
 
         # extensions
         self.volumes = volumes.VolumeManager(self)
+        self.shares = shares.ShareManager(self)
         self.volume_snapshots = volume_snapshots.SnapshotManager(self)
         self.volume_types = volume_types.VolumeTypeManager(self)
 

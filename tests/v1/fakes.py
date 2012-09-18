@@ -167,6 +167,37 @@ class FakeHTTPClient(base_client.HTTPClient):
             raise AssertionError("Unexpected server action: %s" % action)
         return (resp, _body)
 
+    def get_shares_1234(self, **kw):
+        share = {'share': {'id': 1234, 'name': 'sample-volume'}}
+        return (200, share)
+
+    def get_shares_detail(self):
+        shares = {'shares': [
+                    {'id': 1234,
+                     'name': 'sharename',
+                     'attachments': [{'server_id': 111}]
+                     }]}
+        return (200, shares)
+
+    def post_shares_1234_action(self, body, **kw):
+        _body = None
+        resp = 202
+        assert len(body.keys()) == 1
+        action = body.keys()[0]
+        if action == 'os-access_allow':
+            assert body[action].keys() == ['access_type', 'access_to']
+        elif action == 'os-access_deny':
+            assert body[action].keys() == ['access_id']
+        elif action == 'os-access_list':
+            assert body[action] == None
+        else:
+            raise AssertionError("Unexpected share action: %s" % action)
+        return (resp, _body)
+
+    def get_volumes_1234(self, **kw):
+        r = {'volume': self.get_volumes_detail()[1]['volumes'][0]}
+        return (200, r)
+
     def post_servers(self, body, **kw):
         assert set(body.keys()) <= set(['server', 'os:scheduler_hints'])
         fakes.assert_has_keys(body['server'],
@@ -190,6 +221,9 @@ class FakeHTTPClient(base_client.HTTPClient):
         fakes.assert_has_keys(body['server'], optional=['name', 'adminPass'])
         return (204, None)
 
+    def post_shares(self, **kwargs):
+        return (202, {'share': {}})
+
     def post_volumes(self, **kw):
         return (202, {'volume': {}})
 
@@ -197,6 +231,9 @@ class FakeHTTPClient(base_client.HTTPClient):
         return (202, None)
 
     def delete_volumes_1234(self, **kw):
+        return (202, None)
+
+    def delete_shares_1234(self, **kw):
         return (202, None)
 
     def delete_servers_1234_metadata_test_key(self, **kw):
@@ -787,3 +824,18 @@ class FakeHTTPClient(base_client.HTTPClient):
         result = {'host': 'dummy'}
         result.update(body)
         return (200, result)
+
+    def post_shares_1234_action(self, body, **kw):
+        _body = None
+        resp = 202
+        assert len(body.keys()) == 1
+        action = body.keys()[0]
+        if action == 'os-access_allow':
+            assert body[action].keys() == ['access_type', 'access_to']
+        elif action == 'os-access_deny':
+            assert body[action].keys() == ['access_id']
+        elif action == 'os-access_list':
+            assert body[action] == None
+        else:
+            raise AssertionError("Unexpected share action: %s" % action)
+        return (resp, _body)
